@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+base_url="http://www.vinbudin.is/Desktopdefault.aspx/tabid-54?productID="
+
+for i in $(seq -f "%05g" 0 99)
+do
+	echo $i
+	node index.js $base_url$i	
+	sleep 5
+done

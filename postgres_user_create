@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+createuser -d kvasir 
+createdb -E UTF-8 -l en_US.UTF-8 -O kvasir mjodr
