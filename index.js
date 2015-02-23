@@ -1,4 +1,3 @@
-var _    = require('lodash');
 var xray = require('x-ray');
 var pg   = require('pg');
 
@@ -21,63 +20,92 @@ xray(url)
 		stock_updated: '#ctl01_ctl00_span_stockStatusLastUpdated strong', 
 		availability: { 
 			$root: '.tableStockStatus', 
-			store: ['.store, .stockstatus'],
+			store: ['.store'],
+			store_stock: ['.stockstatus'],
 			
 		}
 	}])
 	.run(function(err, array) {
+		var obj = parse_stock_data(array[0])
 		console.log(JSON.stringify(array[0], null, 4));
-		var a      = array[0];
-		if (a.product_name == "Engar upplýsingar") {
+		if (obj.product_name == "Engar upplýsingar") {
 			return;
+		} else if (obj.price == "Ekkert verð") {          // Consider removing this conditional since a lot of products
+			console.log("No price, skipping.");     // seem to have no price on web.
+			return
 		} else {
-			var s, tmp;
-			if (a.stock_updated != undefined) {
-				var second, minute, hour, day, month, year;
-				s         = a.stock_updated.slice(1,-1);
-				tmp       = s.split(" ") ;
-				tmp[0]    = tmp[0].split(".");
-				tmp[1]    = tmp[1].split(":");
-				second    = "00";	
-				minute    = tmp[1][1];
-				hour      = tmp[1][0];
-				day       = tmp[0][0];
-				month     = ('0'+ tmp[0][1]).slice(-2);
-				year      = tmp[0][2];
-				var date  = year+"-"+month+"-"+day+" "+hour+":"+minute+":"+second;
-			}
-			var price = a.price.split('.').join("").split(" ")[0];
-			var abv   = a.abv.split(',').join(".");
-			pg.connect('pg://kvasir@localhost/mjodr', function(err, client, done) {
-				if(err) {
-					console.log("boop");
-					return console.error(err);
-				}
-				client.query({
-					text: "SELECT upsert_item($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);",
-					values: [ 
-							a.product_id,
-							a.product_name,
-							a.volume,
-							price,
-							abv,
-							a.vintage,
-							a.importer,
-							a.country,
-							a.category,
-							a.description,
-							date	
-						]
-				}, function(err, result) {
-					if(err) {
-						return console.error(err)
-					}
-					console.log("Upserted.");
-					done();
-				});
-				done();
-			});
-			pg.end();
+			obj = prepare_data(obj);
+			update_db(obj);
 		}
-
 	})
+
+// Tries to update values in database, if product does not exist, inserts the data instead.
+// NOTE: uses a custom upsert_item function defined in CREATE.sql
+function update_db(obj) {
+	pg.connect('pg://kvasir@localhost/mjodr', function(err, client, done) {
+		if(err) {
+			return console.error(err);
+		}
+		client.query({
+			text: "SELECT upsert_item($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);",
+			values: [ 
+				obj.product_id,
+				obj.product_name,
+				obj.volume,
+				obj.price,
+				obj.abv,
+				obj.vintage,
+				obj.importer,
+				obj.country,
+				obj.category,
+				obj.description,
+				obj.stock_updated
+			]
+		}, function(err, result) {
+			if(err) {
+				return console.error(err)
+			}
+			console.log("Logged.");
+			done();
+		});
+		done();
+	});
+	pg.end();
+};
+
+// Parses stock_updated to ISO time and formats price as integer and abv as float.
+function prepare_data(obj) {
+	if (obj.stock_updated != undefined) {
+		// Horrible.
+		var s, tmp, second, minute, hour, day, month, year;
+		s      = obj.stock_updated.slice(1,-1);
+		tmp    = s.split(" ") ;
+		tmp[0] = tmp[0].split(".");
+		tmp[1] = tmp[1].split(":");
+		second = "00";	
+		minute = tmp[1][1];
+		hour   = tmp[1][0];
+		day    = tmp[0][0];
+		month  = ('0'+ tmp[0][1]).slice(-2);
+		year   = tmp[0][2];
+		obj.stock_updated = year+"-"+month+"-"+day+" "+hour+":"+minute+":"+second;
+	}
+	obj.price = obj.price.split('.').join("").split(" ")[0];
+	obj.abv   = obj.abv.split(',').join(".");
+	return obj;
+};
+
+// Parses the stock status into a single array of objects.
+function parse_stock_data(obj) {
+	obj.availability.stock = [];
+	for ( var i = 0; i < obj.availability.store.length; ++i) {
+		var s = obj.availability.store[i];
+		var n = obj.availability.store_stock[i];
+		var temp_obj = {}
+		temp_obj[s]  = n;
+		obj.availability.stock.push(temp_obj);	
+	}
+	delete obj.availability.store;
+	delete obj.availability.store_stock;
+	return obj;
+};
