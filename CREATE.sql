@@ -1,14 +1,15 @@
 CREATE TABLE IF NOT EXISTS item (
 	id            INTEGER NOT NULL, 
 	name          TEXT NOT NULL,
-	volume        INTEGER NOT NULL,
-	price         INTEGER NOT NULL,
+	volume        TEXT NOT NULL,
+	price         INTEGER,
 	abv           REAL NOT NULL,
 	vintage       INTEGER,
-	importer      TEXT NOT NULL,
-	country       TEXT NOT NULL,
+	importer      TEXT,
+	country       TEXT,
 	category      TEXT NOT NULL,
-	stock_updated TIMESTAMP NOT NULL,
+	description   TEXT NOT NULL,
+	stock_updated TIMESTAMP,
 
 	PRIMARY KEY (id)
 );
@@ -25,13 +26,14 @@ CREATE TABLE IF NOT EXISTS inventory (
 DROP FUNCTION IF EXISTS upsert_item(
 	u_id            int, 
 	u_name          text,
-	u_volume        int,
+	u_volume        text,
 	u_price         int,
 	u_abv           real,
 	u_vintage       int,
 	u_importer      text,
 	u_country       text,
 	u_category      text,
+	u_description   text,
 	u_stock_updated timestamp
 );
 
@@ -39,13 +41,14 @@ DROP FUNCTION IF EXISTS upsert_item(
 CREATE FUNCTION upsert_item(
 	u_id            int, 
 	u_name          text,
-	u_volume        int,
+	u_volume        text,
 	u_price         int,
 	u_abv           real,
 	u_vintage       int,
 	u_importer      text,
 	u_country       text,
 	u_category      text,
+	u_description   text,
 	u_stock_updated timestamp) returns void as
 $$
 BEGIN
@@ -60,6 +63,7 @@ BEGIN
 		importer      = u_importer,
 		country       = u_country, 
 		category      = u_category,
+		description   = u_description,
 		stock_updated = u_stock_updated
 		WHERE id = u_id;
 		IF found THEN
@@ -69,7 +73,7 @@ BEGIN
 		-- if someone else inserts the same key concurrently,
 		-- we could get a unique-key failure
 		BEGIN
-			INSERT INTO db(
+			INSERT INTO item(
 				id, 
 				name, 
 				volume,
@@ -79,8 +83,10 @@ BEGIN
 				importer,
 				country,
 				category,
+				description,
 				stock_updated
 			) VALUES (
+				u_id,
 				u_name,
 				u_volume,
 				u_price,
@@ -89,6 +95,7 @@ BEGIN
 				u_importer,
 				u_country, 
 				u_category,
+				u_description,
 				u_stock_updated
 			);
 			RETURN;

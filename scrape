@@ -2,9 +2,9 @@
 
 base_url="http://www.vinbudin.is/Desktopdefault.aspx/tabid-54?productID="
 
-for i in $(seq -f "%05g" 0 99)
+for i in $(seq -f "%05g" 15 99999)
 do
 	echo $i
 	node index.js $base_url$i	
-	sleep 5
+	sleep 2
 done
