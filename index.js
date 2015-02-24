@@ -27,7 +27,6 @@ xray(url)
 	}])
 	.run(function(err, array) {
 		var obj = parse_stock_data(array[0])
-		console.log(JSON.stringify(array[0], null, 4));
 		if (obj.product_name == "Engar upplýsingar") {
 			return;
 		} else if (obj.price == "Ekkert verð") {          // Consider removing this conditional since a lot of products
@@ -65,7 +64,7 @@ function update_db(obj) {
 			if(err) {
 				return console.error(err)
 			}
-			console.log("Logged.");
+			console.log("Logged: " + obj.product_id + " " + obj.product_name);
 			done();
 		});
 		done();

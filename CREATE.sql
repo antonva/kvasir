@@ -16,10 +16,10 @@ CREATE TABLE IF NOT EXISTS item (
 
 CREATE TABLE IF NOT EXISTS inventory (
 	product_id INTEGER NOT NULL,
-	store      VARCHAR(255) NOT NULL,
+	store      TEXT NOT NULL,
 	stock      INTEGER NOT NULL,
 
-	PRIMARY KEY (product_id),
+	PRIMARY KEY (product_id, store, stock),
 	FOREIGN KEY (product_id) REFERENCES item (id)
 );
 
