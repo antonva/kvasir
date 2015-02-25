@@ -4,43 +4,72 @@ var pg   = require('pg');
 var base_url = "http://www.vinbudin.is/Desktopdefault.aspx/tabid-54?productID="
 
 var url = process.argv[2];
-xray(url)
-	.select([{
-		$root:         '.product-detail',
-		product_name:  '#ctl01_ctl00_Label_ProductName',
-		product_id:    '#ctl01_ctl00_Label_ProductID',
-		price:         '#ctl01_ctl00_Label_ProductPrice',
-		abv:           '#ctl01_ctl00_Label_ProductAlchoholVolume',
-		volume:        '#ctl01_ctl00_Label_ProductBottledVolume',
-		vintage:       '#ctl01_ctl00_Label_ProductYear',
-		importer:      '#ctl01_ctl00_Label_ProductSeller',
-		country:       '#ctl01_ctl00_Label_ProductCountryOfOrigin',
-		category:      '#ctl01_ctl00_Label_ProductSubCategory',
-		description:   '#ctl01_ctl00_Label_ProductDescription',
-		stock_updated: '#ctl01_ctl00_span_stockStatusLastUpdated strong', 
-		availability: { 
-			$root: '.tableStockStatus', 
-			store: ['.store'],
-			store_stock: ['.stockstatus'],
-			
-		}
-	}])
-	.run(function(err, array) {
-		var obj = parse_stock_data(array[0])
-		if (obj.product_name == "Engar upplýsingar") {
-			return;
-		} else if (obj.price == "Ekkert verð") {          // Consider removing this conditional since a lot of products
-			console.log("No price, skipping.");     // seem to have no price on web.
-			return
-		} else {
-			obj = prepare_data(obj);
-			update_db(obj);
-		}
-	})
+
+var scrape_object = [{
+	$root:         '.product-detail',
+	product_name:  '#ctl01_ctl00_Label_ProductName',
+	product_id:    '#ctl01_ctl00_Label_ProductID',
+	price:         '#ctl01_ctl00_Label_ProductPrice',
+	abv:           '#ctl01_ctl00_Label_ProductAlchoholVolume',
+	volume:        '#ctl01_ctl00_Label_ProductBottledVolume',
+	vintage:       '#ctl01_ctl00_Label_ProductYear',
+	importer:      '#ctl01_ctl00_Label_ProductSeller',
+	country:       '#ctl01_ctl00_Label_ProductCountryOfOrigin',
+	category:      '#ctl01_ctl00_Label_ProductSubCategory',
+	description:   '#ctl01_ctl00_Label_ProductDescription',
+	stock_updated: '#ctl01_ctl00_span_stockStatusLastUpdated strong', 
+	availability: { 
+		$root: '.tableStockStatus', 
+		store: ['.store'],
+		store_stock: ['.stockstatus'],
+	}		
+}];
+
+// Run the damn thing!
+
+scrape_existing_items(base_url+'17448');
+
+// Queries website for all known items and updates info and stock.
+function scrape_existing_items(url) {
+	xray(url)
+		.select(scrape_object)
+		.run(function(err, array) {
+			var obj = parse_stock_data(array[0])
+			if (obj.product_name == "Engar upplýsingar") {
+				return;
+			} else if (obj.price == "Ekkert verð") {          // Consider removing this conditional since a lot of products
+				console.log("No price, skipping.");       // seem to have no price on web.
+				return
+			} else {
+				obj = prepare_data(obj);
+				update_items(obj);
+			}
+		})
+	
+}
+
+// Scrapes the entire number range for new items.
+// TODO: think of a less naive way to do this. Generate a list of ids not currently entered in db and query those.
+function scrape_all_items(url) {
+	xray(url)
+		.select(scrape_object)
+		.run(function(err, array) {
+			var obj = parse_stock_data(array[0])
+			if (obj.product_name == "Engar upplýsingar") {
+				return;
+			} else if (obj.price == "Ekkert verð") {          // Consider removing this conditional since a lot of products
+				console.log("No price, skipping.");       // seem to have no price on web.
+				return
+			} else {
+				obj = prepare_data(obj);
+				update_items(obj);
+			}
+		})
+};
 
 // Tries to update values in database, if product does not exist, inserts the data instead.
 // NOTE: uses a custom upsert_item function defined in CREATE.sql
-function update_db(obj) {
+function update_items(obj) {
 	pg.connect('pg://kvasir@localhost/mjodr', function(err, client, done) {
 		if(err) {
 			return console.error(err);
