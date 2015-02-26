@@ -2,7 +2,7 @@ var xray = require('x-ray');
 var pg   = require('pg');
 
 var base_url = "http://www.vinbudin.is/Desktopdefault.aspx/tabid-54?productID="
-
+var connection_string = 'pg://kvasir@localhost/mjodr';
 var url = process.argv[2];
 
 var scrape_object = [{
@@ -26,8 +26,13 @@ var scrape_object = [{
 }];
 
 // Run the damn thing!
-
-scrape_existing_items(base_url+'17448');
+var l = [];
+get_item_ids(function (list) {
+	for (var i = 0; i < list.length; ++i) {
+		l.push(list[i].id);
+	}
+	console.log(l);
+});
 
 // Queries website for all known items and updates info and stock.
 function scrape_existing_items(url) {
@@ -38,11 +43,10 @@ function scrape_existing_items(url) {
 			if (obj.product_name == "Engar upplýsingar") {
 				return;
 			} else if (obj.price == "Ekkert verð") {          // Consider removing this conditional since a lot of products
-				console.log("No price, skipping.");       // seem to have no price on web.
 				return
 			} else {
 				obj = prepare_data(obj);
-				update_items(obj);
+				update_stock(obj);
 			}
 		})
 	
@@ -58,7 +62,6 @@ function scrape_all_items(url) {
 			if (obj.product_name == "Engar upplýsingar") {
 				return;
 			} else if (obj.price == "Ekkert verð") {          // Consider removing this conditional since a lot of products
-				console.log("No price, skipping.");       // seem to have no price on web.
 				return
 			} else {
 				obj = prepare_data(obj);
@@ -70,7 +73,7 @@ function scrape_all_items(url) {
 // Tries to update values in database, if product does not exist, inserts the data instead.
 // NOTE: uses a custom upsert_item function defined in CREATE.sql
 function update_items(obj) {
-	pg.connect('pg://kvasir@localhost/mjodr', function(err, client, done) {
+	pg.connect(connection_string , function(err, client, done) {
 		if(err) {
 			return console.error(err);
 		}
@@ -90,10 +93,40 @@ function update_items(obj) {
 				obj.stock_updated
 			]
 		}, function(err, result) {
-			if(err) {
-				return console.error(err)
-			}
+			if(err) { return console.error(err) }
 			console.log("Logged: " + obj.product_id + " " + obj.product_name);
+			done();
+		});
+		done();
+	});
+	pg.end();
+};
+
+function update_items(obj) {
+	pg.connect(connection_string, function(err, client, done) {
+		if(err) { return console.error(err); }
+		client.query({
+			//TODO: upsert_stock unimplemented as of now.
+			text: "SELECT upsert_stock($1, $2, $3);",
+			values: [ ]
+		}, function(err, result) {
+			if(err) { return console.error(err) }
+			done();
+		});
+		done();
+	});
+	pg.end();
+};
+
+function get_item_ids(cb) {
+	var list = [];
+	pg.connect(connection_string, function(err, client, done) {
+		if(err) { return console.error(err); }
+		client.query({
+			text: "SELECT id FROM item;"
+		}, function(err, result) {
+			cb(result.rows);
+			if(err) { return console.error(err) }
 			done();
 		});
 		done();
