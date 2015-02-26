@@ -1,9 +1,9 @@
-var xray = require('x-ray');
-var pg   = require('pg');
+var xray  = require('x-ray');
+var pg    = require('pg');
+var async = require('async');
 
 var base_url = "http://www.vinbudin.is/Desktopdefault.aspx/tabid-54?productID="
 var connection_string = 'pg://kvasir@localhost/mjodr';
-var url = process.argv[2];
 
 var scrape_object = [{
 	$root:         '.product-detail',
