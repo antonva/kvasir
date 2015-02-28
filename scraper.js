@@ -1,34 +1,44 @@
-var util  = require('util'),
-    xray  = require('x-ray'),
-    pg    = require('pg'),
-    async = require('async'),
+var util   = require('util'),
+    events = require('events'),
+    xray   = require('x-ray');
 
-function Scraper() {
-	
-	this.baseUrl = "http://www.vinbudin.is/Desktopdefault.aspx/tabid-54?productID=";
 
-	// The scraper class' template;.
-	this.template = [{
-		$root:         '.product-detail',
-		product_name:  '#ctl01_ctl00_Label_ProductName',
-		product_id:    '#ctl01_ctl00_Label_ProductID',
-		price:         '#ctl01_ctl00_Label_ProductPrice',
-		abv:           '#ctl01_ctl00_Label_ProductAlchoholVolume',
-		volume:        '#ctl01_ctl00_Label_ProductBottledVolume',
-		vintage:       '#ctl01_ctl00_Label_ProductYear',
-		importer:      '#ctl01_ctl00_Label_ProductSeller',
-		country:       '#ctl01_ctl00_Label_ProductCountryOfOrigin',
-		category:      '#ctl01_ctl00_Label_ProductSubCategory',
-		description:   '#ctl01_ctl00_Label_ProductDescription',
-		stock_updated: '#ctl01_ctl00_span_stockStatusLastUpdated strong', 
-		availability: { 
-			$root: '.tableStockStatus', 
-			store: ['.store'],
-			store_stock: ['.stockstatus'],
-		}		
-		stock: {},
-	}];
+function Scraper(base_url, template) {
+    var self = this;
+    this.base_url = base_url;
+    this.template = template;
 
-}
+    this.get_item = function(url) {
+	xray(url)
+	    .select(this.template)
+	    .run(function(err, array) {
+		if (err) { console.log(err) };
+		self.emit('got_item', array[0]);
+	    })
+    };
 
-util.inherits(Login,EventEmitter);
+    this.parse_item = function(obj) {
+	if (obj.stock_updated != undefined) {
+	    // Horrible time format gets horrible parsing
+	    var slice, tmp, ss, mm, hh, dd, mo, yy;
+	    slice  = obj.stock_updated.slice(1,-1);
+	    tmp    = slice.split(" ") ;
+	    tmp[0] = tmp[0].split(".");
+	    tmp[1] = tmp[1].split(":");
+	    ss     = "00";	
+	    mm     = tmp[1][1];
+	    hh     = tmp[1][0];
+	    dd     = tmp[0][0];
+	    mo     = ('0'+ tmp[0][1]).slice(-2);
+	    yy     = tmp[0][2];
+	    obj.stock_updated = yy+"-"+mo+"-"+dd+" "+hh+":"+mm+":"+ss;
+	}
+	obj.price = obj.price.split('.').join("").split(" ")[0];
+	obj.abv   = obj.abv.split(',').join(".");
+	self.emit('parsed_item', obj);
+    };
+};
+
+util.inherits(Scraper, events.EventEmitter);
+module.exports = Scraper;
+
