@@ -18,14 +18,12 @@ var template = [{
 	category:      '#ctl01_ctl00_Label_ProductSubCategory',
 	description:   '#ctl01_ctl00_Label_ProductDescription',
 	stock_updated: '#ctl01_ctl00_span_stockStatusLastUpdated strong', 
-	availability: { 
-		$root: '.tableStockStatus', 
-		store: ['.store'],
-		store_stock: ['.stockstatus'],
-	}		
+	stores:        ['.store'],
+	store_stock:   ['.stockstatus'],
 }];
 
 var s = new Scraper(base_url, template);
-s.on('got_item', function (obj) { s.parse_item(obj)});
-s.on('parsed_item', function (obj) { console.log(obj) });
+    s.on('got_item', function (obj) { s.parse_item(obj)});
+    s.on('parsed_item', function (obj) { s.write_stock_to_db(obj) });
+
 s.get_item(base_url+'21382');

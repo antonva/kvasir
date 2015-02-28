@@ -1,7 +1,10 @@
 var util   = require('util'),
     events = require('events'),
-    xray   = require('x-ray');
+    xray   = require('x-ray'),
+    pg     = require('pg'),
+    async  = require('async');
 
+var connection_string = 'pg://kvasir@localhost/mjodr';
 
 function Scraper(base_url, template) {
     var self = this;
@@ -35,8 +38,57 @@ function Scraper(base_url, template) {
 	}
 	obj.price = obj.price.split('.').join("").split(" ")[0];
 	obj.abv   = obj.abv.split(',').join(".");
+
+	/* Create a new key in the object containing an array of {store: stockstatus} objects. */
+	obj.stock_array = [];
+	for ( var i = 0; i < obj.stores.length; ++i) {
+		var s = obj.stores[i];
+		var n = obj.store_stock[i];
+		var temp_obj = {}
+		temp_obj[s]  = n;
+		obj.stock_array.push(temp_obj);	
+	}
 	self.emit('parsed_item', obj);
     };
+
+    this.write_item_to_db = function() {
+
+    };
+    
+    /* Untested */
+    this.write_stock_to_db = function(obj) {
+	async.each(obj.stock_array, function( store, callback ) {
+	    console.log(Object.keys(store)[0]);
+	    console.log(store[Object.keys(store)[0]]);
+	    pg.connect(connection_string, function(err, client, done) {
+		if(err) { return console.error(err); }
+		client.query({
+		    //TODO: upsert_stock unimplemented as of now.
+		    text: "SELECT upsert_stock($1, $2, $3);",
+		    values: [ 
+			obj.id,
+			Object.keys(store)[0],
+			store[Object.keys(store)[0]]
+		    ]
+		}, function(err, result) {
+		    callback()
+		    if(err) { return console.error(err) }
+		    done();
+		});
+		done();
+	    });
+	    pg.end();
+
+	}, function (err) {
+	    if (err) { console.log(err) };
+	    console.log("boop");
+	});
+    };
+
+    this.get_item_by_id = function(id) {
+
+    };
+
 };
 
 util.inherits(Scraper, events.EventEmitter);
