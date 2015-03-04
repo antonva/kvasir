@@ -105,16 +105,18 @@ $$ BEGIN
 	END LOOP;
 END;
 $$
+LANGUAGE plpgsql;
 
 DROP FUNCTION IF EXISTS upsert_stock(
 	u_id	INT,
 	u_store TEXT,
-	u_stock INT,
+	u_stock INT
 );
-CREATE FUNCTION upsert_item(
+
+CREATE FUNCTION upsert_stock(
 	u_id	INT,
 	u_store TEXT,
-	u_stock INT,
+	u_stock INT
 ) returns void as
 $$ BEGIN
 	LOOP
@@ -144,6 +146,6 @@ $$ BEGIN
 		-- Do nothing, and loop to try the UPDATE again.
 		END;
 	END LOOP;
-
+END;
 $$
 LANGUAGE plpgsql;

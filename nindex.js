@@ -22,8 +22,11 @@ var template = [{
 	store_stock:   ['.stockstatus'],
 }];
 
+var stock_list = [];
 var s = new Scraper(base_url, template);
-    s.on('got_item', function (obj) { s.parse_item(obj)});
+    s.on('scraped_item', function (obj) { s.parse_item(obj)});
     s.on('parsed_item', function (obj) { s.write_stock_to_db(obj) });
+    s.on('items_returned', function (list) { stock_list = list; });
 
-s.get_item(base_url+'21382');
+//s.get_item(base_url+'21382');
+s.get_item_ids()

@@ -11,12 +11,12 @@ function Scraper(base_url, template) {
     this.base_url = base_url;
     this.template = template;
 
-    this.get_item = function(url) {
+    this.scrape_item = function(url) {
 	xray(url)
 	    .select(this.template)
 	    .run(function(err, array) {
 		if (err) { console.log(err) };
-		self.emit('got_item', array[0]);
+		self.emit('scraped_item', array[0]);
 	    })
     };
 
@@ -55,18 +55,17 @@ function Scraper(base_url, template) {
 
     };
     
-    /* Untested */
     this.write_stock_to_db = function(obj) {
+
 	async.each(obj.stock_array, function( store, callback ) {
 	    console.log(Object.keys(store)[0]);
 	    console.log(store[Object.keys(store)[0]]);
 	    pg.connect(connection_string, function(err, client, done) {
 		if(err) { return console.error(err); }
 		client.query({
-		    //TODO: upsert_stock unimplemented as of now.
 		    text: "SELECT upsert_stock($1, $2, $3);",
 		    values: [ 
-			obj.id,
+			obj.product_id,
 			Object.keys(store)[0],
 			store[Object.keys(store)[0]]
 		    ]
@@ -81,12 +80,31 @@ function Scraper(base_url, template) {
 
 	}, function (err) {
 	    if (err) { console.log(err) };
-	    console.log("boop");
+	    self.emit('stock_updated', obj);
 	});
     };
 
     this.get_item_by_id = function(id) {
 
+    };
+
+    this.get_item_ids = function() {
+	var list = [];
+	pg.connect(connection_string, function(err, client, done) {
+		if(err) { return console.error(err); }
+		client.query({
+			text: "SELECT id FROM item;"
+		}, function(err, result) {
+			if(err) { return console.error(err) }
+			for (var i = 0; i < result.rows.length; ++i) {
+			    list.push(result.rows[i].id);
+			}
+			self.emit('items_returned', list);
+			done();
+		});
+		done();
+	});
+	pg.end();
     };
 
 };
